@@ -1,21 +1,65 @@
-{% extends "base.html" %} {% block title %}Home{% endblock %} {% block content
-%}
-<h1 align="center">Notes</h1>
-<ul class="list-group list-group-flush" id="notes">
-  {% for note in user.notes %}
-  <li class="list-group-item">
-    {{ note.data }}
-    <button type="button" class="close" onClick="deleteNote({{ note.id }})">
-      <span aria-hidden="true">&times;</span>
-    </button>
-  </li>
-  {% endfor %}
-</ul>
-<form method="POST">
-  <textarea name="note" id="note" class="form-control"></textarea>
-  <br />
-  <div align="center">
-    <button type="submit" class="btn btn-primary">Add Note</button>
-  </div>
-</form>
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h1 align="center">Calendar</h1>
+<div id="calendar"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let calendarEl = document.getElementById('calendar');
+        let calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            editable: true,
+            selectable: true,
+            events: '/events',
+
+            dateClick: function(info) {
+                const title = prompt('Enter Event Title:');
+                const time = prompt('Enter Event Time (HH:MM format):');
+                
+                const color = prompt('Enter Event Color: \n Options:\n - red\n - blue\n - green\n - orange\n - purple\n - pink\n - yellow\n - brown\n - gray\n - black\n (You can also use hex codes like #FF0000):');
+
+                if (title && time) {
+                    const eventData = {
+                        title: title,
+                        start: `${info.dateStr}T${time}:00`,
+                        color: color
+                    };
+                    calendar.addEvent(eventData);
+                    saveEvent(eventData);
+                }
+            },
+
+            eventClick: function(info) {
+                if (confirm('Would you like to delete this event?')) {
+                    deleteEvent(info.event.id);
+                    info.event.remove();
+                }
+            }
+        });
+
+        calendar.render();
+
+        function saveEvent(eventData) {
+            fetch('/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(eventData)
+            });
+        }
+
+        function deleteEvent(eventId) {
+            fetch('/delete-event', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ eventId: eventId })
+            });
+        }
+    });
+</script>
 {% endblock %}
