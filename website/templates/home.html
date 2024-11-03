@@ -1,8 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block content %}
+
 <h1 align="center">Calendar</h1>
 <div id="calendar"></div>
+
+<!-- Weather Section -->
+<div style="margin-top: 20px;">
+    <h2>Weather</h2>
+    <input type="text" id="city" placeholder="Enter city">
+    <button id="getWeather">Get Weather</button>
+    <div id="weatherResult"></div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
@@ -60,6 +69,31 @@
                 body: JSON.stringify({ eventId: eventId })
             });
         }
+
+        // Weather API functionality
+        document.getElementById('getWeather').addEventListener('click', function() {
+            const city = document.getElementById('city').value.trim();
+            if (city) {
+                fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=9170d9339a1dc73a6c0940f2f45d406d&units=imperial`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.cod === 200) {
+                            const temp = data.main.temp;
+                            const weather = data.weather[0].description;
+                            document.getElementById('weatherResult').innerHTML = `Temperature: ${temp} °F, Weather: ${weather}`;
+                        } else {
+                            document.getElementById('weatherResult').innerHTML = 'Error: City not found';
+                        }
+                    })
+                    .catch(error => {
+                        document.getElementById('weatherResult').innerHTML = 'Error fetching weather data';
+                        console.error('Error fetching weather data:', error);
+                    });
+            } else {
+                document.getElementById('weatherResult').innerHTML = 'Please enter a city.';
+            }
+        });
     });
 </script>
+
 {% endblock %}
