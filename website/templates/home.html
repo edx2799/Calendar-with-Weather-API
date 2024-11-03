@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block content %}
-
 <h1 align="center">Calendar</h1>
 <div id="calendar"></div>
 
-<!-- Weather Section -->
-<div style="margin-top: 20px;">
-    <h2>Weather</h2>
-    <input type="text" id="city" placeholder="Enter city">
-    <button id="getWeather">Get Weather</button>
-    <div id="weatherResult"></div>
-</div>
+<h2 align="center">Weekly Weather Forecast</h2>
+<form id="locationForm" align="center">
+    <label for="city">Enter City:</label>
+    <input type="text" id="city" placeholder="e.g., Los Angeles, CA" required>
+    <button type="button" onclick="getCoordinates()">Get Weather</button>
+</form>
+<div id="weatherDisplay" align="center"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
+    // FullCalendar setup
     document.addEventListener('DOMContentLoaded', function() {
         let calendarEl = document.getElementById('calendar');
         let calendar = new FullCalendar.Calendar(calendarEl, {
@@ -27,7 +27,7 @@
                 const title = prompt('Enter Event Title:');
                 const time = prompt('Enter Event Time (HH:MM format):');
                 
-                const color = prompt('Enter Event Color: \n Options:\n - red\n - blue\n - green\n - orange\n - purple\n - pink\n - yellow\n - brown\n - gray\n - black\n (You can also use hex codes like #FF0000):');
+                const color = prompt('Enter Event Color:\nOptions:\n- red\n- blue\n- green\n- orange\n- purple\n- pink\n- yellow\n- brown\n- gray\n- black\n');
 
                 if (title && time) {
                     const eventData = {
@@ -69,31 +69,51 @@
                 body: JSON.stringify({ eventId: eventId })
             });
         }
-
-        // Weather API functionality
-        document.getElementById('getWeather').addEventListener('click', function() {
-            const city = document.getElementById('city').value.trim();
-            if (city) {
-                fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=9170d9339a1dc73a6c0940f2f45d406d&units=imperial`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.cod === 200) {
-                            const temp = data.main.temp;
-                            const weather = data.weather[0].description;
-                            document.getElementById('weatherResult').innerHTML = `Temperature: ${temp} °F, Weather: ${weather}`;
-                        } else {
-                            document.getElementById('weatherResult').innerHTML = 'Error: City not found';
-                        }
-                    })
-                    .catch(error => {
-                        document.getElementById('weatherResult').innerHTML = 'Error fetching weather data';
-                        console.error('Error fetching weather data:', error);
-                    });
-            } else {
-                document.getElementById('weatherResult').innerHTML = 'Please enter a city.';
-            }
-        });
     });
-</script>
 
+    // Fetch coordinates and call NWS API
+    async function getCoordinates() {
+        const city = document.getElementById('city').value;
+        const geocodeUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&format=json&limit=1`;
+
+        try {
+            const response = await fetch(geocodeUrl);
+            const data = await response.json();
+            if (data && data.length > 0) {
+                const lat = data[0].lat;
+                const lon = data[0].lon;
+                getWeather(lat, lon);
+            } else {
+                document.getElementById('weatherDisplay').innerText = 'Location not found';
+            }
+        } catch (error) {
+            document.getElementById('weatherDisplay').innerText = 'Error fetching location';
+        }
+    }
+
+    // Fetch 7-day weather forecast from NWS API
+    async function getWeather(lat, lon) {
+        const weatherUrl = `https://api.weather.gov/points/${lat},${lon}`;
+
+        try {
+            const response = await fetch(weatherUrl);
+            const data = await response.json();
+            const forecastUrl = data.properties.forecast;
+
+            const forecastResponse = await fetch(forecastUrl);
+            const forecastData = await forecastResponse.json();
+
+            const periods = forecastData.properties.periods.slice(0, 14); // Get 7-day forecast
+            let weatherHtml = '<h3>7-Day Forecast:</h3><ul>';
+            periods.forEach(day => {
+                weatherHtml += `<li><strong>${day.name}:</strong> ${day.temperature}°${day.temperatureUnit}, ${day.shortForecast}</li>`;
+            });
+            weatherHtml += '</ul>';
+
+            document.getElementById('weatherDisplay').innerHTML = weatherHtml;
+        } catch (error) {
+            document.getElementById('weatherDisplay').innerText = 'Error fetching weather data';
+        }
+    }
+</script>
 {% endblock %}
