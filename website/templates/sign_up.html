@@ -1,25 +1,40 @@
-{% extends "base.html" %}
-{% block title %}Sign Up{% endblock %}
-{% block content %}
-<form method="POST">
-    <h3 align="center">Sign Up</h3>
+{% extends "base.html" %} <!-- Extends the base layout to inherit common HTML structure -->
+
+{% block title %}Sign Up{% endblock %} <!-- Sets the page title to "Sign Up" -->
+
+{% block content %} <!-- Begin the content block where the form is placed -->
+
+<form method="POST"> <!-- Form with POST method for secure data submission -->
+    <h3 align="center">Sign Up</h3> <!-- Centered header for the signup form -->
+
+    <!-- Email input field -->
     <div class="form-group">
-        <label for="email">Email Address</label>
-        <input type="email" class="form-control" id="email" name="email" placeholder="Enter email" />
+        <label for="email">Email Address</label> <!-- Label for the email input -->
+        <input type="email" class="form-control" id="email" name="email" placeholder="Enter email" /> <!-- Email input with Bootstrap styling and placeholder text -->
     </div>
+
+    <!-- First name input field -->
     <div class="form-group">
-        <label for="firstName">First Name</label>
-        <input type="text" class="form-control" id="firstName" name="firstName" placeholder="Enter first name" />
+        <label for="firstName">First Name</label> <!-- Label for first name input -->
+        <input type="text" class="form-control" id="firstName" name="firstName" placeholder="Enter first name" /> <!-- Text input for the user's first name -->
     </div>
+
+    <!-- Password input field -->
     <div class="form-group">
-        <label for="password1">Password</label>
-        <input type="password" class="form-control" id="password1" name="password1" placeholder="Enter password" />
+        <label for="password1">Password</label> <!-- Label for password input -->
+        <input type="password" class="form-control" id="password1" name="password1" placeholder="Enter password" /> <!-- Password input field with Bootstrap styling and placeholder -->
     </div>
+
+    <!-- Confirm password input field -->
     <div class="form-group">
-        <label for="password2">Password (Confirm)</label>
-        <input type="password" class="form-control" id="password2" name="password2" placeholder="Confirm password" />
+        <label for="password2">Password (Confirm)</label> <!-- Label for confirming the password -->
+        <input type="password" class="form-control" id="password2" name="password2" placeholder="Confirm password" /> <!-- Password confirmation field with placeholder text -->
     </div>
-    <br />
-    <button type="submit" class="btn btn-primary">Submit</button>
+    
+    <br /> <!-- Adds space before the submit button -->
+
+    <!-- Submit button -->
+    <button type="submit" class="btn btn-primary">Submit</button> <!-- Bootstrap-styled submit button for form submission -->
 </form>
-{% endblock %}
+
+{% endblock %} <!-- End of the content block -->

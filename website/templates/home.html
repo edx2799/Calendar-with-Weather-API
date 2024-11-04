@@ -1,118 +1,132 @@
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block content %}
+
+<!-- Title for the calendar section -->
 <h1 align="center">Calendar</h1>
+<!-- Div where the FullCalendar will render -->
 <div id="calendar"></div>
 
+<!-- Title and form for the weather forecast input -->
 <h2 align="center">Weekly Weather Forecast</h2>
 <form id="locationForm" align="center">
     <label for="city">Enter City:</label>
     <input type="text" id="city" placeholder="e.g., Los Angeles, CA" required>
     <button type="button" onclick="getCoordinates()">Get Weather</button>
 </form>
+<!-- Div where the weather forecast will be displayed -->
 <div id="weatherDisplay" align="center"></div>
 
+<!-- FullCalendar library for rendering the calendar -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
-    // FullCalendar setup
+    // Initialize FullCalendar after the page content loads
     document.addEventListener('DOMContentLoaded', function() {
-        let calendarEl = document.getElementById('calendar');
-        let calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            editable: true,
-            selectable: true,
-            events: '/events',
+        let calendarEl = document.getElementById('calendar'); // Reference to the calendar div
 
+        // FullCalendar setup with customizable options
+        let calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth', // Month view as default
+            editable: true, // Events are editable
+            selectable: true, // Dates are selectable for creating events
+            events: '/events', // Fetch events from the server endpoint
+
+            // Date click event to create new events
             dateClick: function(info) {
-                const title = prompt('Enter Event Title:');
-                const time = prompt('Enter Event Time (HH:MM format):');
-                
-                const color = prompt('Enter Event Color:\nOptions:\n- red\n- blue\n- green\n- orange\n- purple\n- pink\n- yellow\n- brown\n- gray\n- black\n');
+                const title = prompt('Enter Event Title:'); // Get event title
+                const time = prompt('Enter Event Time (HH:MM format):'); // Get event time
+                const color = prompt('Enter Event Color:\nOptions:\n- red\n- blue\n- green\n- orange\n- purple\n- pink\n- yellow\n- brown\n- gray\n- black\n'); // Get color
 
                 if (title && time) {
+                    // Create event object
                     const eventData = {
                         title: title,
-                        start: `${info.dateStr}T${time}:00`,
-                        color: color
+                        start: `${info.dateStr}T${time}:00`, // Set event start time
+                        color: color // Set chosen color
                     };
-                    calendar.addEvent(eventData);
-                    saveEvent(eventData);
+                    calendar.addEvent(eventData); // Add event to calendar view
+                    saveEvent(eventData); // Save event to the server
                 }
             },
 
+            // Event click event to delete events
             eventClick: function(info) {
                 if (confirm('Would you like to delete this event?')) {
-                    deleteEvent(info.event.id);
-                    info.event.remove();
+                    deleteEvent(info.event.id); // Delete event from the server
+                    info.event.remove(); // Remove event from calendar view
                 }
             }
         });
 
+        // Render the calendar in the calendar div
         calendar.render();
 
+        // Function to send new event data to the server
         function saveEvent(eventData) {
             fetch('/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(eventData)
+                body: JSON.stringify(eventData) // Send event data as JSON
             });
         }
 
+        // Function to send a request to delete an event from the server
         function deleteEvent(eventId) {
             fetch('/delete-event', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ eventId: eventId })
+                body: JSON.stringify({ eventId: eventId }) // Send event ID as JSON
             });
         }
     });
 
-    // Fetch coordinates and call NWS API
+    // Function to fetch coordinates for a city using OpenStreetMap's geocoding API
     async function getCoordinates() {
-        const city = document.getElementById('city').value;
-        const geocodeUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&format=json&limit=1`;
+        const city = document.getElementById('city').value; // Get city name from input
+        const geocodeUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&format=json&limit=1`; // Geocode API URL
 
         try {
-            const response = await fetch(geocodeUrl);
+            const response = await fetch(geocodeUrl); // Fetch coordinates
             const data = await response.json();
             if (data && data.length > 0) {
-                const lat = data[0].lat;
-                const lon = data[0].lon;
-                getWeather(lat, lon);
+                const lat = data[0].lat; // Extract latitude
+                const lon = data[0].lon; // Extract longitude
+                getWeather(lat, lon); // Fetch weather for coordinates
             } else {
-                document.getElementById('weatherDisplay').innerText = 'Location not found';
+                document.getElementById('weatherDisplay').innerText = 'Location not found'; // Show error if location not found
             }
         } catch (error) {
-            document.getElementById('weatherDisplay').innerText = 'Error fetching location';
+            document.getElementById('weatherDisplay').innerText = 'Error fetching location'; // Show error if request fails
         }
     }
 
-    // Fetch 7-day weather forecast from NWS API
+    // Function to fetch a 7-day weather forecast from the National Weather Service (NWS) API
     async function getWeather(lat, lon) {
-        const weatherUrl = `https://api.weather.gov/points/${lat},${lon}`;
+        const weatherUrl = `https://api.weather.gov/points/${lat},${lon}`; // URL to get forecast URL from NWS
 
         try {
-            const response = await fetch(weatherUrl);
+            const response = await fetch(weatherUrl); // Fetch weather URL
             const data = await response.json();
-            const forecastUrl = data.properties.forecast;
+            const forecastUrl = data.properties.forecast; // Get actual forecast URL
 
-            const forecastResponse = await fetch(forecastUrl);
+            const forecastResponse = await fetch(forecastUrl); // Fetch forecast data
             const forecastData = await forecastResponse.json();
 
-            const periods = forecastData.properties.periods.slice(0, 14); // Get 7-day forecast
-            let weatherHtml = '<h3>7-Day Forecast:</h3><ul>';
+            // Slice data to show a 7-day forecast (14 periods as it includes day and night)
+            const periods = forecastData.properties.periods.slice(0, 14);
+            let weatherHtml = '<h3>7-Day Forecast:</h3><ul>'; // HTML template for displaying weather
             periods.forEach(day => {
-                weatherHtml += `<li><strong>${day.name}:</strong> ${day.temperature}°${day.temperatureUnit}, ${day.shortForecast}</li>`;
+                weatherHtml += `<li><strong>${day.name}:</strong> ${day.temperature}°${day.temperatureUnit}, ${day.shortForecast}</li>`; // Display forecast details
             });
             weatherHtml += '</ul>';
 
-            document.getElementById('weatherDisplay').innerHTML = weatherHtml;
+            document.getElementById('weatherDisplay').innerHTML = weatherHtml; // Insert forecast into the page
         } catch (error) {
-            document.getElementById('weatherDisplay').innerText = 'Error fetching weather data';
+            document.getElementById('weatherDisplay').innerText = 'Error fetching weather data'; // Show error if request fails
         }
     }
 </script>

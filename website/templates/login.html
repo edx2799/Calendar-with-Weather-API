@@ -1,17 +1,26 @@
-{% extends "base.html" %}
-{% block title %}Login{% endblock %}
-{% block content %}
-<form method="POST">
-    <h3 align="center">Login</h3>
+{% extends "base.html" %} <!-- Extends the base layout, which contains the shared structure for all pages -->
+
+{% block title %}Login{% endblock %} <!-- Sets the page title to "Login" -->
+
+{% block content %} <!-- Content block where the specific page content is injected into the base layout -->
+<form method="POST"> <!-- Form with POST method for secure data submission -->
+    <h3 align="center">Login</h3> <!-- Centered header for the login form -->
+
+    <!-- Email input field -->
     <div class="form-group">
-        <label for="email">Email Address</label>
-        <input type="email" class="form-control" id="email" name="email" placeholder="Enter email" />
+        <label for="email">Email Address</label> <!-- Label for email input -->
+        <input type="email" class="form-control" id="email" name="email" placeholder="Enter email" /> <!-- Email input field with placeholder -->
     </div>
+
+    <!-- Password input field -->
     <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" class="form-control" id="password" name="password" placeholder="Enter password" />
+        <label for="password">Password</label> <!-- Label for password input -->
+        <input type="password" class="form-control" id="password" name="password" placeholder="Enter password" /> <!-- Password input field with placeholder -->
     </div>
-    <br />
-    <button type="submit" class="btn btn-primary">Login</button>
+    
+    <br /> <!-- Line break for spacing -->
+
+    <!-- Submit button to log in -->
+    <button type="submit" class="btn btn-primary">Login</button> <!-- Button styled with Bootstrap primary button class -->
 </form>
-{% endblock %}
+{% endblock %} <!-- End of the content block -->
