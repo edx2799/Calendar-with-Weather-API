@@ -21,14 +21,17 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Get the calendar element by its ID
         let calendarEl = document.getElementById('calendar');
 
+        // Initialize FullCalendar with settings and event handlers
         let calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            editable: true,
-            selectable: true,
-            events: '/events',
+            initialView: 'dayGridMonth',  // Set the default view to month grid
+            editable: true,               // Allow events to be draggable and editable
+            selectable: true,             // Allow users to select dates
+            events: '/events',            // Load events from the server
 
+            // Triggered when a date cell is clicked to create a new event
             dateClick: function(info) {
                 const title = prompt('Enter Event Title:');
                 const time = prompt('Enter Event Time (HH:MM format):');
@@ -37,41 +40,45 @@
                 if (title && time) {
                     const eventData = {
                         title: title,
-                        start: `${info.dateStr}T${time}:00`,
+                        start: `${info.dateStr}T${time}:00`,  // Format start date and time
                         color: color
                     };
-                    calendar.addEvent(eventData);
-                    saveEvent(eventData);
+                    calendar.addEvent(eventData);  // Add the event to the calendar
+                    saveEvent(eventData);          // Save the event to the server
                 }
             },
 
+            // Triggered when an existing event is clicked to delete it
             eventClick: function(info) {
                 if (confirm('Would you like to delete this event?')) {
-                    deleteEvent(info.event.id);
-                    info.event.remove();
+                    deleteEvent(info.event.id);  // Remove event from server
+                    info.event.remove();         // Remove event from the calendar view
                 }
             }
         });
 
+        // Render the calendar
         calendar.render();
 
+        // Function to save a new event to the server
         function saveEvent(eventData) {
             fetch('/events', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(eventData)
+                body: JSON.stringify(eventData)  // Send event data in JSON format
             })
             .then(response => response.json())
             .then(data => {
                 if (data.id) {
-                    eventData.id = data.id; // Assign ID to event after save
+                    eventData.id = data.id; // Assign the server-generated ID to the event
                 }
             })
             .catch(error => console.error("Error saving event:", error));
         }
 
+        // Function to delete an event from the server
         function deleteEvent(eventId) {
             fetch(`/delete-event/${eventId}`, {
                 method: 'DELETE',
@@ -89,17 +96,18 @@
         }
     });
 
+    // Function to get the coordinates of the entered city
     async function getCoordinates() {
         const city = document.getElementById('city').value;
         const geocodeUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&format=json&limit=1`;
 
         try {
-            const response = await fetch(geocodeUrl);
+            const response = await fetch(geocodeUrl);  // Fetch city coordinates
             const data = await response.json();
             if (data && data.length > 0) {
                 const lat = data[0].lat;
                 const lon = data[0].lon;
-                getWeather(lat, lon);
+                getWeather(lat, lon);  // Fetch weather using the coordinates
             } else {
                 document.getElementById('weatherDisplay').innerText = 'Location not found';
             }
@@ -108,17 +116,19 @@
         }
     }
 
+    // Function to fetch weather data based on coordinates
     async function getWeather(lat, lon) {
         const weatherUrl = `https://api.weather.gov/points/${lat},${lon}`;
 
         try {
-            const response = await fetch(weatherUrl);
+            const response = await fetch(weatherUrl);  // Fetch weather forecast URL
             const data = await response.json();
             const forecastUrl = data.properties.forecast;
 
-            const forecastResponse = await fetch(forecastUrl);
+            const forecastResponse = await fetch(forecastUrl);  // Fetch forecast data
             const forecastData = await forecastResponse.json();
 
+            // Get the first 7 days of the forecast
             const periods = forecastData.properties.periods.slice(0, 14);
             let weatherHtml = '<h3>7-Day Forecast:</h3><ul>';
             periods.forEach(day => {
@@ -126,6 +136,7 @@
             });
             weatherHtml += '</ul>';
 
+            // Display the forecast on the page
             document.getElementById('weatherDisplay').innerHTML = weatherHtml;
         } catch (error) {
             document.getElementById('weatherDisplay').innerText = 'Error fetching weather data';
