@@ -1,41 +1,90 @@
-from flask import Blueprint, render_template, request, jsonify  # Import necessary modules for routing, rendering, and JSON responses
-from flask_login import login_required, current_user  # Import login utilities to restrict access to authenticated users
-from .models import Event  # Import the Event model to interact with the database
-from . import db  # Import the database instance for database operations
-import json  # Import json for handling JSON data
+from flask import Blueprint, render_template, request, jsonify
+from flask_login import login_required, current_user
+from datetime import datetime  # Import datetime for date parsing
+from .models import Event
+from . import db
 
-# Define a new blueprint for views
+# Define the views Blueprint for handling routes related to event management
 views = Blueprint('views', __name__)
 
-# Route for the home page, handles both GET and POST requests
-@views.route('/', methods=['GET', 'POST'])
-@login_required  # Ensures only logged-in users can access this route
+@views.route('/')
+@login_required
 def home():
-    # Handle POST request to add a new event
-    if request.method == 'POST':
-        # Get JSON data from the request
-        event_data = request.get_json()
+    # Query events for the current user from the database
+    user_events = Event.query.filter_by(user_id=current_user.id).all()
+    
+    # Format events as a list of dictionaries for easy JSON rendering
+    events_list = [
+        {
+            'id': event.id,
+            'title': event.title,
+            'start': event.start.isoformat(),  # Convert datetime to ISO format string
+            'color': event.color
+        }
+        for event in user_events
+    ]
+    
+    # Render the home page with the user's events
+    return render_template("home.html", events=events_list, user=current_user)
+
+@views.route('/events', methods=['GET', 'POST'])
+@login_required
+def manage_events():
+    if request.method == 'GET':
+        # If GET request, fetch and return all events for the current user
+        user_events = Event.query.filter_by(user_id=current_user.id).all()
         
-        # Create a new Event instance with data from the form and current user's ID
+        # Prepare a list of events as dictionaries
+        events_list = [
+            {
+                'id': event.id,
+                'title': event.title,
+                'start': event.start.isoformat(),  # Convert datetime to ISO format string
+                'color': event.color
+            }
+            for event in user_events
+        ]
+        
+        # Return the list of events as a JSON response
+        return jsonify(events_list)
+    
+    elif request.method == 'POST':
+        # If POST request, add a new event
+        data = request.get_json()  # Parse the JSON data from the request
+        
+        # Convert the 'start' string to a datetime object
+        try:
+            start_datetime = datetime.fromisoformat(data['start'])
+        except ValueError:
+            # Return error response if the datetime format is invalid
+            return jsonify({'error': 'Invalid datetime format'}), 400
+
+        # Create a new Event instance with the provided data
         new_event = Event(
-            title=event_data['title'],
-            start=event_data['start'],
-            color=event_data['color'],
+            title=data['title'],
+            start=start_datetime,
+            color=data['color'],
             user_id=current_user.id
         )
         
-        # Add the new event to the database and commit the transaction
+        # Add the new event to the session and commit to save in the database
         db.session.add(new_event)
         db.session.commit()
         
-        # Respond with a success message and 201 status code
-        return jsonify({'success': True}), 201
+        # Return a success response with the new event's ID
+        return jsonify({'success': True, 'id': new_event.id}), 201
 
-    # Handle GET request to retrieve current user's events
-    user_events = Event.query.filter_by(user_id=current_user.id).all()
+@views.route('/delete-event/<int:event_id>', methods=['DELETE'])
+@login_required
+def delete_event(event_id):
+    # Find the event by ID and ensure it belongs to the current user
+    event = Event.query.get(event_id)
     
-    # Prepare a list of events with necessary fields formatted for JSON
-    events_list = [{'id': event.id, 'title': event.title, 'start': event.start.isoformat(), 'color': event.color} for event in user_events]
-    
-    # Render the home template, passing the events and current user as context
-    return render_template("home.html", events=events_list, user=current_user)
+    if event and event.user_id == current_user.id:
+        # Delete the event if it exists and belongs to the user
+        db.session.delete(event)
+        db.session.commit()
+        return jsonify({'success': True})
+    else:
+        # Return an error if the event is not found or not owned by the user
+        return jsonify({'error': 'Event not found or unauthorized deletion'}), 404

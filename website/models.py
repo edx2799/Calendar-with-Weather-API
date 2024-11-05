@@ -1,6 +1,8 @@
 from . import db  # Importing the database instance from the main application
 from flask_login import UserMixin  # Importing UserMixin for user session management
 
+
+
 # Event model for calendar events
 class Event(db.Model):
     # Unique ID for each event
