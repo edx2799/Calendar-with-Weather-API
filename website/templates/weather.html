@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Weather{% endblock %}
+{% block content %}
+<h1 align="center">Weekly Weather Forecast</h1>
+<form id="locationForm" align="center">
+    <label for="city">Enter City:</label>
+    <input type="text" id="city" placeholder="e.g., McAllen" required>
+    <button type="button" onclick="getCoordinates()">Get Weather</button>
+</form>
+<div id="weatherDisplay" align="center"></div>
+
+<script>
+    // Fetch coordinates and call NWS API
+    async function getCoordinates() {
+        const city = document.getElementById('city').value;
+        const geocodeUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&format=json&limit=1`;
+
+        try {
+            const response = await fetch(geocodeUrl);
+            const data = await response.json();
+            if (data && data.length > 0) {
+                const lat = data[0].lat;
+                const lon = data[0].lon;
+                getWeather(lat, lon);
+            } else {
+                document.getElementById('weatherDisplay').innerText = 'Location not found';
+            }
+        } catch (error) {
+            document.getElementById('weatherDisplay').innerText = 'Error fetching location';
+        }
+    }
+
+    // Fetch 7-day weather forecast from NWS API
+    async function getWeather(lat, lon) {
+        const weatherUrl = `https://api.weather.gov/points/${lat},${lon}`;
+
+        try {
+            const response = await fetch(weatherUrl);
+            const data = await response.json();
+            const forecastUrl = data.properties.forecast;
+
+            const forecastResponse = await fetch(forecastUrl);
+            const forecastData = await forecastResponse.json();
+
+            const periods = forecastData.properties.periods.slice(0, 14); // Get 7-day forecast
+            let weatherHtml = '<h3>7-Day Forecast:</h3><ul>';
+            periods.forEach(day => {
+                weatherHtml += `<li><strong>${day.name}:</strong> ${day.temperature}°${day.temperatureUnit}, ${day.shortForecast}</li>`;
+            });
+            weatherHtml += '</ul>';
+
+            document.getElementById('weatherDisplay').innerHTML = weatherHtml;
+        } catch (error) {
+            document.getElementById('weatherDisplay').innerText = 'Error fetching weather data';
+        }
+    }
+    
+</script>
+<footer>
+    <h4 align="left">
+        <a href="/">
+            <button>Return to Dashboard</button>
+        </a>
+    </h4>
+</footer>
+{% endblock %}

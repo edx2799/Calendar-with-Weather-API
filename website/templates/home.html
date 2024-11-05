@@ -1,38 +1,36 @@
 {% extends "base.html" %}
 {% block title %}Home{% endblock %}
 {% block content %}
-
+<h4 align="left">
+    <a href="/weather">
+        <button>Get Weather Forecast</button>
+    </a>    
+</h4>
 <!-- Title for the calendar section -->
 <h1 align="center">Calendar</h1>
 <!-- Div where the FullCalendar will render -->
 <div id="calendar"></div>
 
-<!-- Title and form for the weather forecast input -->
-<h2 align="center">Weekly Weather Forecast</h2>
-<form id="locationForm" align="center">
-    <label for="city">Enter City:</label>
-    <input type="text" id="city" placeholder="e.g., Los Angeles, CA" required>
-    <button type="button" onclick="getCoordinates()">Get Weather</button>
-</form>
-<!-- Div where the weather forecast will be displayed -->
-<div id="weatherDisplay" align="center"></div>
 
-<!-- FullCalendar library for rendering the calendar -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Get the calendar element by its ID
         let calendarEl = document.getElementById('calendar');
 
-        // Initialize FullCalendar with settings and event handlers
+        // Initialize FullCalendar
         let calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',  // Set the default view to month grid
-            editable: true,               // Allow events to be draggable and editable
-            selectable: true,             // Allow users to select dates
-            events: '/events',            // Load events from the server
+            initialView: 'dayGridMonth', // Set initial view to month
+            headerToolbar: {
+                left: 'prev,next today', // Navigation buttons
+                center: 'title', // Center title
+                right: 'dayGridMonth,timeGridWeek,timeGridDay' // View options
+            },
+            editable: true, // Allow events to be editable
+            selectable: true, // Allow dates to be selected
+            events: '/events', // Fetch events from server
 
-            // Triggered when a date cell is clicked to create a new event
             dateClick: function(info) {
+                // Prompt user for event details when a date is clicked
                 const title = prompt('Enter Event Title:');
                 const time = prompt('Enter Event Time (HH:MM format):');
                 const color = prompt('Enter Event Color:\nOptions:\n- red\n- blue\n- green\n- orange\n- purple\n- pink\n- yellow\n- brown\n- gray\n- black\n');
@@ -40,45 +38,74 @@
                 if (title && time) {
                     const eventData = {
                         title: title,
-                        start: `${info.dateStr}T${time}:00`,  // Format start date and time
+                        start: `${info.dateStr}T${time}:00`, // Combine date and time for event start
                         color: color
                     };
-                    calendar.addEvent(eventData);  // Add the event to the calendar
-                    saveEvent(eventData);          // Save the event to the server
+                    calendar.addEvent(eventData); // Add event to calendar
+                    saveEvent(eventData); // Save event to server
                 }
             },
 
-            // Triggered when an existing event is clicked to delete it
             eventClick: function(info) {
-                if (confirm('Would you like to delete this event?')) {
-                    deleteEvent(info.event.id);  // Remove event from server
-                    info.event.remove();         // Remove event from the calendar view
+                // Prompt user to edit event if clicked
+                const newTitle = prompt('(If you want to delete, click cancel until prompted) Edit Event Title:', info.event.title);
+                const newTime = prompt('Edit Event Time (HH:MM format):', info.event.start.toISOString().slice(11, 16));
+                const newColor = prompt('Edit Event Color:\nOptions:\n- red\n- blue\n- green\n- orange\n- purple\n- pink\n- yellow\n- brown\n- gray\n- black\n', info.event.color);
+
+                if (newTitle && newTime) {
+                    const updatedEventData = {
+                        title: newTitle,
+                        start: `${info.event.start.toISOString().slice(0, 10)}T${newTime}:00`,
+                        color: newColor
+                    };
+                    updateEvent(info.event.id, updatedEventData); // Call update function
+                    info.event.setProp('title', newTitle); // Update event title in calendar
+                    info.event.setStart(`${info.event.start.toISOString().slice(0, 10)}T${newTime}:00`); // Update start time
+                    info.event.setProp('color', newColor); // Update event color in calendar
+                } else if (confirm('Would you like to delete this event?')) {
+                    // Confirm deletion when an event is clicked
+                    deleteEvent(info.event.id); // Call delete function
+                    info.event.remove(); // Remove event from calendar display
                 }
             }
         });
 
-        // Render the calendar
-        calendar.render();
+        calendar.render(); // Render the calendar
 
-        // Function to save a new event to the server
         function saveEvent(eventData) {
             fetch('/events', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(eventData)  // Send event data in JSON format
+                body: JSON.stringify(eventData) // Convert event data to JSON
             })
             .then(response => response.json())
             .then(data => {
                 if (data.id) {
-                    eventData.id = data.id; // Assign the server-generated ID to the event
+                    eventData.id = data.id; // Assign ID to event after saving
                 }
             })
             .catch(error => console.error("Error saving event:", error));
         }
 
-        // Function to delete an event from the server
+        function updateEvent(eventId, eventData) {
+            fetch(`/update-event/${eventId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(eventData) // Convert updated event data to JSON
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    console.error("Failed to update event");
+                }
+            })
+            .catch(error => console.error("Error updating event:", error));
+        }
+
         function deleteEvent(eventId) {
             fetch(`/delete-event/${eventId}`, {
                 method: 'DELETE',
@@ -95,53 +122,6 @@
             .catch(error => console.error("Error deleting event:", error));
         }
     });
-
-    // Function to get the coordinates of the entered city
-    async function getCoordinates() {
-        const city = document.getElementById('city').value;
-        const geocodeUrl = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&format=json&limit=1`;
-
-        try {
-            const response = await fetch(geocodeUrl);  // Fetch city coordinates
-            const data = await response.json();
-            if (data && data.length > 0) {
-                const lat = data[0].lat;
-                const lon = data[0].lon;
-                getWeather(lat, lon);  // Fetch weather using the coordinates
-            } else {
-                document.getElementById('weatherDisplay').innerText = 'Location not found';
-            }
-        } catch (error) {
-            document.getElementById('weatherDisplay').innerText = 'Error fetching location';
-        }
-    }
-
-    // Function to fetch weather data based on coordinates
-    async function getWeather(lat, lon) {
-        const weatherUrl = `https://api.weather.gov/points/${lat},${lon}`;
-
-        try {
-            const response = await fetch(weatherUrl);  // Fetch weather forecast URL
-            const data = await response.json();
-            const forecastUrl = data.properties.forecast;
-
-            const forecastResponse = await fetch(forecastUrl);  // Fetch forecast data
-            const forecastData = await forecastResponse.json();
-
-            // Get the first 7 days of the forecast
-            const periods = forecastData.properties.periods.slice(0, 14);
-            let weatherHtml = '<h3>7-Day Forecast:</h3><ul>';
-            periods.forEach(day => {
-                weatherHtml += `<li><strong>${day.name}:</strong> ${day.temperature}°${day.temperatureUnit}, ${day.shortForecast}</li>`;
-            });
-            weatherHtml += '</ul>';
-
-            // Display the forecast on the page
-            document.getElementById('weatherDisplay').innerHTML = weatherHtml;
-        } catch (error) {
-            document.getElementById('weatherDisplay').innerText = 'Error fetching weather data';
-        }
-    }
 </script>
 
 {% endblock %}
