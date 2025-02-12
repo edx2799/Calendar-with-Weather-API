@@ -3,7 +3,4 @@ Flask-SQLAlchemy
 flask-login
 
 
-event zeek_init() {
-    Log::create_stream(CustomTraffic::LOG, [$columns=Conn::Info]);
-}
 
