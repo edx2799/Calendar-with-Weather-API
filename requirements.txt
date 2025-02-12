@@ -1,3 +1,126 @@
 flask
 Flask-SQLAlchemy
 flask-login
+@load base/protocols/conn
+@load base/protocols/http
+@load base/protocols/ftp
+@load base/protocols/ssl
+
+module CustomTraffic;
+
+export {
+    redef record Conn::Info += {
+        attack_cat: string &default = "-";  # Placeholder for attack classification
+        is_sm_ips_ports: bool &default = F;
+        sintpkt: interval &default = 0 sec;
+        dintpkt: interval &default = 0 sec;
+        tcprtt: interval &default = 0 sec;
+        synack: interval &default = 0 sec;
+        ackdat: interval &default = 0 sec;
+        
+        # Connection-level statistics
+        dur: interval &default = 0 sec;
+        sbytes: count &default = 0;
+        dbytes: count &default = 0;
+        sttl: count &default = 0;
+        dttl: count &default = 0;
+        sloss: count &default = 0;
+        dloss: count &default = 0;
+        spkts: count &default = 0;
+        dpkts: count &default = 0;
+        swin: count &default = 0;
+        dwin: count &default = 0;
+        stcpb: count &default = 0;
+        dtcpb: count &default = 0;
+        smeansz: count &default = 0;
+        dmeansz: count &default = 0;
+        sjit: interval &default = 0 sec;
+        djit: interval &default = 0 sec;
+        Sload: double &default = 0.0;
+        Dload: double &default = 0.0;
+        
+        # HTTP & FTP specific fields
+        ct_flw_http_mthd: count &default = 0;
+        is_ftp_login: bool &default = F;
+        ct_ftp_cmd: count &default = 0;
+        
+        # Temporal and Frequency-based Features
+        ct_srv_src: count &default = 0;
+        ct_srv_dst: count &default = 0;
+        ct_dst_ltm: count &default = 0;
+        ct_src_ltm: count &default = 0;
+        ct_src_dport_ltm: count &default = 0;
+        ct_dst_sport_ltm: count &default = 0;
+        ct_dst_src_ltm: count &default = 0;
+        
+        # Timestamp
+        Stime: time &default = network_time();
+        Ltime: time &default = network_time();
+    };
+}
+
+event connection_state_remove(c: connection) {
+    local conn_id = c$id;
+    local conn_info: Conn::Info = c$info;
+
+    # Basic details
+    conn_info.dur = c$duration;
+    conn_info.sbytes = c$orig_bytes;
+    conn_info.dbytes = c$resp_bytes;
+    conn_info.sttl = c$orig_ttl;
+    conn_info.dttl = c$resp_ttl;
+    conn_info.sloss = c$orig_ip_bytes - c$orig_bytes;
+    conn_info.dloss = c$resp_ip_bytes - c$resp_bytes;
+    conn_info.swin = c$orig_window;
+    conn_info.dwin = c$resp_window;
+    conn_info.spkts = c$orig_pkts;
+    conn_info.dpkts = c$resp_pkts;
+    conn_info.stcpb = c$orig_seq;
+    conn_info.dtcpb = c$resp_seq;
+
+    # Compute mean packet size
+    conn_info.smeansz = c$orig_bytes / (c$orig_pkts + 1);
+    conn_info.dmeansz = c$resp_bytes / (c$resp_pkts + 1);
+
+    # Compute load and jitter
+    conn_info.Sload = c$orig_bytes / (c$duration + 1.0);
+    conn_info.Dload = c$resp_bytes / (c$duration + 1.0);
+    conn_info.sjit = c$orig_ip_bytes / (c$orig_pkts + 1);
+    conn_info.djit = c$resp_ip_bytes / (c$resp_pkts + 1);
+
+    # Compute inter-packet arrival time
+    conn_info.sintpkt = c$duration / (c$orig_pkts + 1);
+    conn_info.dintpkt = c$duration / (c$resp_pkts + 1);
+
+    # TCP metrics
+    if (c$proto == "tcp") {
+        conn_info.tcprtt = c$rtt;
+        conn_info.synack = c$syn_time;
+        conn_info.ackdat = c$ack_time;
+    }
+
+    # Small IP and port similarity
+    if (conn_id$orig_h == conn_id$resp_h && conn_id$orig_p == conn_id$resp_p) {
+        conn_info.is_sm_ips_ports = T;
+    }
+
+    Log::write(CustomTraffic::LOG, conn_info);
+}
+
+event http_request(c: connection, method: string, host: string, uri: string) {
+    c$info$ct_flw_http_mthd += 1;
+}
+
+event ftp_login(c: connection, user: string, success: bool) {
+    if (success) {
+        c$info$is_ftp_login = T;
+    }
+}
+
+event ftp_command(c: connection, command: string, arg: string) {
+    c$info$ct_ftp_cmd += 1;
+}
+
+event zeek_init() {
+    Log::create_stream(CustomTraffic::LOG, [$columns=Conn::Info]);
+}
