@@ -1,0 +1,28 @@
+## This file was configured and placed in /etc/systemd/system (your directory might be different) 
+
+[Unit]
+Description=Gunicorn instance for Flask app
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/flask_app
+Environment="PATH=/opt/flask_app/venv/bin"
+Environment="PYTHONPATH=/opt/flask_app"
+ExecStart=/opt/flask_app/venv/bin/gunicorn \
+    --worker-class sync \
+    --workers 1 \
+    --bind unix:/opt/flask_app/app.sock \
+    --timeout 300 \
+    --log-level debug \
+    --access-logfile - \
+    --error-logfile - \
+    app:app
+
+Restart=on-failure
+RestartSec=10
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
