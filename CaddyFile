@@ -1,3 +1,17 @@
-externalIP {
-    reverse_proxy localhost:8000
+:80 {  # Listen on all interfaces (required for GCP health checks)
+    reverse_proxy unix//opt/flask_app/app.sock {
+        # Critical for Flask redirects/auth to work
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-Proto "http"  # LB communicates over HTTP
+    }
+
+    log {
+        output stdout
+        format json
+    }
+
+    handle_errors {
+        respond "{http.error.status_code} {http.error.status_text}"
+    }
 }
